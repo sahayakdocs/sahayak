@@ -101,24 +101,24 @@ async function checkAndLogin() {
         const res = await firebase.auth().signInWithPopup(provider);
         const user = res.user;
 
-        cconst cardRef = db.collection('activated_cards').doc(ref);
-const doc = await cardRef.get();
+        const cardRef = db.collection('activated_cards').doc(ref);
+        const doc = await cardRef.get();
 
-// .exists() की जगह सिर्फ .exists इस्तेमाल करें
-if(doc.exists) { 
-    if(doc.data().ownerEmail !== user.email) {
-        alert("यह कार्ड किसी और ईमेल से लिंक है!");
-        await firebase.auth().signOut();
-        return;
-    }
-} else {
-    // नया कार्ड लिंक करें
-    await cardRef.set({ 
-        ownerEmail: user.email, 
-        activatedOn: new Date().toISOString() 
-    });
-    alert("सफलता! कार्ड आपकी ईमेल से लॉक हो गया है।");
-}
+        // Check if card is already linked
+        if(doc.exists) { 
+            if(doc.data().ownerEmail !== user.email) {
+                alert("यह कार्ड किसी और ईमेल से लिंक है!");
+                await firebase.auth().signOut();
+                return;
+            }
+        } else {
+            // New card registration
+            await cardRef.set({ 
+                ownerEmail: user.email, 
+                activatedOn: new Date().toISOString() 
+            });
+            alert("सफलता! कार्ड आपकी ईमेल से लॉक हो गया है।");
+        }
 
         document.getElementById('loginSection').style.display='none';
         document.getElementById('scanSection').style.display='block';
