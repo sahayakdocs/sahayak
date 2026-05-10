@@ -3,75 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sahayak Docs - Login</title>
+    <title>Sahayak Docs - Login & Scanner</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
     <style>
-        body { font-family: sans-serif; background: #eef2f7; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        .box { background: white; width: 90%; max-width: 380px; padding: 25px; border-radius: 20px; text-align: center; border-top: 8px solid #1a73e8; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
-        button { width: 100%; padding: 14px; background: #1a73e8; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .announce { background: #fff9c4; padding: 10px; border-radius: 10px; font-size: 11px; margin-bottom: 15px; border: 1px dashed #fbc02d; }
+        body { font-family: 'Segoe UI', sans-serif; background: #eef2f7; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .box { background: white; width: 90%; max-width: 380px; padding: 25px; border-radius: 20px; text-align: center; border-top: 8px solid #1a73e8; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .logo { font-size: 22px; font-weight: bold; color: #1a73e8; margin-bottom: 5px; }
+        .announce { background: #fff9c4; padding: 10px; border-radius: 10px; font-size: 11px; margin-bottom: 15px; border: 1px dashed #fbc02d; color: #856404; }
+        
+        /* Payment Box Style */
+        .upi-box { background: #e3f2fd; border: 1px dashed #1a73e8; padding: 15px; border-radius: 12px; margin: 15px 0; font-size: 13px; }
+        .pay-link { color: #d32f2f; font-weight: bold; text-decoration: none; display: block; margin-bottom: 10px; font-size: 15px; }
+        
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 15px; }
+        button { width: 100%; padding: 14px; background: #1a73e8; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 16px; }
+        .wa-btn { background: #25D366 !important; margin-bottom: 5px; }
+        
         #scanSection { display: none; }
-        video { width: 100%; border-radius: 15px; background: #000; }
+        video { width: 100%; border-radius: 15px; background: #000; margin-bottom: 10px; }
+        #status { font-size: 13px; color: #1a73e8; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
 <body>
+
 <div class="box">
     <div id="loginSection">
+        <div class="logo">SMART LOCKER</div>
         <div class="announce">📢 <b>Update:</b> अब अपने कार्ड से सीधा "Search" करें! पीछे वाला QR स्कैन करें।</div>
-        <h2 style="color:#1a73e8;">Smart Locker</h2>
-        <input type="text" id="refId" placeholder="Ref. ID from Card">
-        <button style="background:#25D366" onclick="window.open('https://wa.me/918700407760?text=Verify%20My%20ID:%20'+document.getElementById('refId').value)">✅ Get SD Password</button>
-        <input type="password" id="sdPass" placeholder="Enter SD Password">
-        <button onclick="checkAndLogin()">Activate & Start</button>
+        
+        <input type="text" id="refId" placeholder="Ref. ID (from Card)" maxlength="8">
+
+        <div class="upi-box">
+            <b>Activation Fee: ₹50</b><br><br>
+            <a href="upi://pay?pa=8700407760@okbizaxis&pn=SahayakDocs&am=50" class="pay-link">[ यहाँ क्लिक करके ₹50 पे करें ]</a>
+            <button class="wa-btn" onclick="verifyOnWhatsApp()">✅ Verify on WhatsApp</button>
+            <p style="font-size:10px; color:#666; margin-top:5px;">पेमेंट के बाद व्हाट्सएप पर पासवर्ड प्राप्त करें।</p>
+        </div>
+
+        <input type="password" id="sdPass" placeholder="Enter 6-Digit SD Password">
+        <button onclick="checkAndLogin()">Activate & Start Scanner</button>
+        <p style="font-size:11px; color:#888; margin-top:15px;">Admin Support: 8882897071</p>
     </div>
+
     <div id="scanSection">
         <video id="v" autoplay playsinline></video>
         <canvas id="c" style="display:none;"></canvas>
-        <button onclick="takeSnap()">📸 Capture & Save (HD)</button>
-        <p id="status" style="font-size:12px; color:blue;"></p>
+        <button onclick="takeSnap()">📸 Capture & Save (HD Filter)</button>
+        <button onclick="window.location.href='viewer.html'" style="background:#34a853; margin-top:10px;">📂 Go to Dashboard</button>
+        <p id="status"></p>
     </div>
 </div>
+
 <script>
-const firebaseConfig = { apiKey: "AIzaSyBSB5o1YN8oAnY3X7P4RXHZcnVlyAu2YGs", authDomain: "sdm-scanner-cb292.firebaseapp.com", projectId: "sdm-scanner-cb292", appId: "1:292373162631:web:bcc197ff516eb435b4a622" };
+// Firebase Config
+const firebaseConfig = { 
+    apiKey: "AIzaSyBSB5o1YN8oAnY3X7P4RXHZcnVlyAu2YGs", 
+    authDomain: "sdm-scanner-cb292.firebaseapp.com", 
+    projectId: "sdm-scanner-cb292", 
+    appId: "1:292373162631:web:bcc197ff516eb435b4a622" 
+};
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+// 1. URL से Ref ID उठाना
 window.onload = () => {
     const ref = new URLSearchParams(window.location.search).get('ref');
-    if(ref) { document.getElementById('refId').value = ref; document.getElementById('refId').readOnly = true; }
+    if(ref) { 
+        document.getElementById('refId').value = ref; 
+        document.getElementById('refId').readOnly = true; 
+    }
 };
 
+// 2. व्हाट्सएप वेरिफिकेशन
+function verifyOnWhatsApp() {
+    const ref = document.getElementById('refId').value || "NEW_USER";
+    const msg = `Sir, my Ref ID is ${ref}, I have paid ₹50. Please send me the SD Password.`;
+    window.open(`https://wa.me/918700407760?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// 3. लॉगिन और ईमेल लॉकिंग
 async function checkAndLogin() {
     const ref = document.getElementById('refId').value;
     const pass = document.getElementById('sdPass').value;
+    
+    // SD Password Calculation
     let total = (parseInt(ref[4])*5) + (parseInt(ref[6])*7) + (parseInt(ref[7])*8);
-    if(pass !== "SD" + total.toString().padStart(4, '0')) { alert("Wrong Password!"); return; }
+    let calc = "SD" + total.toString().padStart(4, '0');
+    
+    if(pass !== calc) { alert("गलत पासवर्ड! कृपया पेमेंट चेक करें।"); return; }
+
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/drive.file');
+
     try {
         const res = await firebase.auth().signInWithPopup(provider);
         const user = res.user;
-        const cardDoc = await db.collection('activated_cards').doc(ref).get();
-        if(cardDoc.exists() && cardDoc.data().ownerEmail !== user.email) { alert("Card locked to another email!"); return; }
-        await db.collection('activated_cards').doc(ref).set({ ownerEmail: user.email });
+
+        const cardRef = db.collection('activated_cards').doc(ref);
+        const doc = await cardRef.get();
+        
+        if(doc.exists()) {
+            if(doc.data().ownerEmail !== user.email) {
+                alert("यह कार्ड किसी और ईमेल से लिंक है!");
+                await firebase.auth().signOut();
+                return;
+            }
+        } else {
+            await cardRef.set({ ownerEmail: user.email, activatedOn: new Date().toISOString() });
+            alert("सफलता! कार्ड आपकी ईमेल " + user.email + " से लॉक हो गया है।");
+        }
+
         document.getElementById('loginSection').style.display='none';
         document.getElementById('scanSection').style.display='block';
         navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(s=>document.getElementById('v').srcObject=s);
-    } catch(e) { alert(e.message); }
+    } catch(e) { alert("Error: " + e.message); }
 }
 
+// 4. एचडी कैप्चर
 function takeSnap() {
-    const v = document.getElementById('v'), c = document.getElementById('c'), ctx = c.getContext('2d');
+    const v = document.getElementById('v'), c = document.getElementById('c'), st = document.getElementById('status');
+    const ctx = c.getContext('2d');
     c.width = v.videoWidth; c.height = v.videoHeight;
-    ctx.filter = 'contrast(1.4) brightness(1.1)'; 
+    
+    ctx.filter = 'contrast(1.4) brightness(1.1) saturate(0.8)'; 
     ctx.drawImage(v, 0, 0);
+    
     const data = c.toDataURL('image/jpeg', 0.9);
-    document.getElementById('status').innerText = "Saving...";
+    st.innerText = "सेव हो रहा है... ⏳";
+    
     fetch("https://script.google.com/macros/s/AKfycbzpEL_z0pybQye9Q0nt1u7j1P81xufRZBV9OMux6gV5-hg7dS0y5f7Ydcl-s7FF-3EC/exec",{method:'POST',mode:'no-cors',body:JSON.stringify({data:data,name:"Doc_"+Date.now()+".jpg"})})
-    .then(()=> { document.getElementById('status').innerText = "Saved! ✅"; });
+    .then(()=> { 
+        st.innerText = "ड्राइव में सुरक्षित सेव हो गया! ✅"; 
+        alert("Document Saved Successfully!");
+    });
 }
 </script>
 </body>
