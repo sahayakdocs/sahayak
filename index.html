@@ -104,7 +104,7 @@ async function checkAndLogin() {
         const cardRef = db.collection('activated_cards').doc(ref);
         const doc = await cardRef.get();
         
-        if(doc.exists()) {
+        if(doc.exists() {
             if(doc.data().ownerEmail !== user.email) {
                 alert("यह कार्ड किसी और ईमेल से लिंक है!");
                 await firebase.auth().signOut();
