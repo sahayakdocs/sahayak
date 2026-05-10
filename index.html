@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sahayak System</title>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: Arial; text-align: center; background: #f4f4f4; padding: 10px; }
+        .box { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px #ccc; }
+        input, button { width: 90%; padding: 12px; margin: 8px 0; border-radius: 5px; border: 1px solid #ddd; }
+        button { background: #1a73e8; color: white; border: none; cursor: pointer; }
+        .upi { background: #fff3cd; padding: 10px; font-size: 13px; border: 1px dashed #856404; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2 style="color:#1a73e8">SAHAYAK DOCS</h2>
+    <div id="loginSection">
+        <input type="text" id="refId" placeholder="8-Digit Ref. ID" maxlength="8">
+        <div class="upi">
+            Activate Card: <b>₹50</b><br>
+            <a href="upi://pay?pa=8700407760@okbizaxis&pn=Sahayak&am=50">Click to Pay UPI</a>
+        </div>
+        <input type="password" id="sdPass" placeholder="Enter SD Password">
+        <button onclick="checkAndLogin()">Login & Save</button>
+        <p style="font-size:12px">Contact: 8700407760</p>
+    </div>
+
+    <div id="scanSection" style="display:none">
+        <video id="v" width="100%" autoplay playsinline></video>
+        <canvas id="c" style="display:none"></canvas>
+        <button onclick="takeSnap()">Capture & Upload</button>
+        <button onclick="window.location.href='https://drive.google.com/drive/u/0/my-drive'" style="background:green">View Documents</button>
+    </div>
+</div>
+
+<script>
+// // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyBSB5o1YN8oAnY3X7P4RXHZcnVlyAu2YGs",
+  authDomain: "sdm-scanner-cb292.firebaseapp.com",
+  projectId: "sdm-scanner-cb292",
+  storageBucket: "sdm-scanner-cb292.firebasestorage.app",
+  messagingSenderId: "292373162631",
+  appId: "1:292373162631:web:bcc197ff516eb435b4a622"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const firebaseConfig = { apiKey: "...", authDomain: "...", projectId: "...", appId: "..." };
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+async function checkAndLogin() {
+    const ref = document.getElementById('refId').value;
+    const pass = document.getElementById('sdPass').value;
+    
+    // SD Code Calculation Logic (Hidden)
+    let calc = "SD" + (parseInt(ref[4]*5) + parseInt(ref[6]*7) + parseInt(ref[7]*8)).toString().padStart(4,'0');
+    
+    if(pass !== calc) { alert("Wrong SD Code! Contact 8700407760"); return; }
+
+    const provider = new firebase.auth.GoogleAuthProvider();
+    const res = await firebase.auth().signInWithPopup(provider);
+    const user = res.user;
+
+    // Card Locking Logic
+    const cardRef = db.collection('cards').doc(ref);
+    const doc = await cardRef.get();
+    
+    if(doc.exists() && doc.data().owner !== user.email) {
+        alert("This card belongs to someone else! Buy New: 8700407760");
+    } else {
+        await cardRef.set({ owner: user.email });
+        document.getElementById('loginSection').style.display='none';
+        document.getElementById('scanSection').style.display='block';
+        startCam();
+    }
+}
+
+function startCam() {
+    navigator.mediaDevices.getUserMedia({video: {facingMode:"environment"}}).then(s=>{document.getElementById('v').srcObject=s;});
+}
+
+function takeSnap() {
+    const v = document.getElementById('v');
+    const c = document.getElementById('c');
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v, 0, 0);
+    alert("Uploading to your G-Drive...");
+    // https://script.google.com/macros/s/AKfycbzpEL_z0pybQye9Q0nt1u7j1P81xufRZBV9OMux6gV5-hg7dS0y5f7Ydcl-s7FF-3EC/exec
+}
+</script>
+</body>
+</html>
