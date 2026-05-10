@@ -8,99 +8,70 @@
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Arial; background: #eef2f7; text-align: center; padding: 20px; }
-        .box { background: white; max-width: 400px; margin: auto; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-top: 8px solid #1a73e8; }
-        input, button { width: 100%; padding: 14px; margin: 10px 0; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
-        button { background: #1a73e8; color: white; font-weight: bold; border: none; cursor: pointer; }
-        .upi-box { background: #fff9c4; padding: 15px; border-radius: 10px; margin: 15px 0; border: 1px dashed #fbc02d; font-size: 14px; }
+        body { font-family: sans-serif; background: #eef2f7; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .box { background: white; width: 90%; max-width: 380px; padding: 25px; border-radius: 20px; text-align: center; border-top: 8px solid #1a73e8; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
+        button { width: 100%; padding: 14px; background: #1a73e8; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .announce { background: #fff9c4; padding: 10px; border-radius: 10px; font-size: 11px; margin-bottom: 15px; border: 1px dashed #fbc02d; }
         #scanSection { display: none; }
         video { width: 100%; border-radius: 15px; background: #000; }
     </style>
 </head>
 <body>
-
 <div class="box">
-    <h2 style="color:#1a73e8; margin-bottom:0;">SAHAYAK DOCUMENTATION</h2>
-    <p style="font-size:12px; color:#666;">Smart Document Management System</p>
-
     <div id="loginSection">
-        <input type="text" id="refId" placeholder="Ref. ID (from Card)" maxlength="8">
-        <div class="upi-box">
-            <b>Activation Fee: ₹50</b><br>
-            <a href="upi://pay?pa=8700407760@okbizaxis&pn=SahayakDocs&am=50" style="color:red; text-decoration:none; font-weight:bold;">Click here to Pay ₹50</a>
-        </div>
-        <input type="password" id="sdPass" placeholder="Enter 6-Digit SD Password">
+        <div class="announce">📢 <b>Update:</b> अब अपने कार्ड से सीधा "Search" करें! पीछे वाला QR स्कैन करें।</div>
+        <h2 style="color:#1a73e8;">Smart Locker</h2>
+        <input type="text" id="refId" placeholder="Ref. ID from Card">
+        <button style="background:#25D366" onclick="window.open('https://wa.me/918700407760?text=Verify%20My%20ID:%20'+document.getElementById('refId').value)">✅ Get SD Password</button>
+        <input type="password" id="sdPass" placeholder="Enter SD Password">
         <button onclick="checkAndLogin()">Activate & Start</button>
-        <p style="font-size:11px;">Help: 8882897071 | 8700407760</p>
     </div>
-
     <div id="scanSection">
         <video id="v" autoplay playsinline></video>
-        <canvas id="c" style="display:none"></canvas>
-        <button onclick="takeSnap()">Capture & Save to Drive</button>
-        <button onclick="window.location.href='https://drive.google.com/drive/u/0/search?q=Uploaded_Documents'" style="background:green; margin-top:10px;">View My Folder</button>
+        <canvas id="c" style="display:none;"></canvas>
+        <button onclick="takeSnap()">📸 Capture & Save (HD)</button>
+        <p id="status" style="font-size:12px; color:blue;"></p>
     </div>
 </div>
-
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBSB5o1YN8oAnY3X7P4RXHZcnVlyAu2YGs",
-  authDomain: "sdm-scanner-cb292.firebaseapp.com",
-  projectId: "sdm-scanner-cb292",
-  appId: "1:292373162631:web:bcc197ff516eb435b4a622"
-};
+const firebaseConfig = { apiKey: "AIzaSyBSB5o1YN8oAnY3X7P4RXHZcnVlyAu2YGs", authDomain: "sdm-scanner-cb292.firebaseapp.com", projectId: "sdm-scanner-cb292", appId: "1:292373162631:web:bcc197ff516eb435b4a622" };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// ऑटो-रिफिल लॉजिक
-window.onload = function() {
-    const params = new URLSearchParams(window.location.search);
-    const ref = params.get('ref');
-    if(ref) {
-        document.getElementById('refId').value = ref;
-        document.getElementById('refId').readOnly = true;
-    }
+window.onload = () => {
+    const ref = new URLSearchParams(window.location.search).get('ref');
+    if(ref) { document.getElementById('refId').value = ref; document.getElementById('refId').readOnly = true; }
 };
 
 async function checkAndLogin() {
     const ref = document.getElementById('refId').value;
     const pass = document.getElementById('sdPass').value;
-    
     let total = (parseInt(ref[4])*5) + (parseInt(ref[6])*7) + (parseInt(ref[7])*8);
-    let calc = "SD" + total.toString().padStart(4, '0');
-    
-    if(pass !== calc) { alert("Wrong Password! Call 8700407760"); return; }
-
+    if(pass !== "SD" + total.toString().padStart(4, '0')) { alert("Wrong Password!"); return; }
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/drive.file');
-
     try {
         const res = await firebase.auth().signInWithPopup(provider);
         const user = res.user;
-        const cardRef = db.collection('cards').doc(ref);
-        const doc = await cardRef.get();
-        
-        if(doc.exists() && doc.data().owner !== user.email) {
-            alert("Card already linked to another email!");
-        } else {
-            await cardRef.set({ owner: user.email, active: true });
-            document.getElementById('loginSection').style.display='none';
-            document.getElementById('scanSection').style.display='block';
-            navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(s=>{document.getElementById('v').srcObject=s;});
-        }
-    } catch(e) { alert("Login Error: " + e.message); }
+        const cardDoc = await db.collection('activated_cards').doc(ref).get();
+        if(cardDoc.exists() && cardDoc.data().ownerEmail !== user.email) { alert("Card locked to another email!"); return; }
+        await db.collection('activated_cards').doc(ref).set({ ownerEmail: user.email });
+        document.getElementById('loginSection').style.display='none';
+        document.getElementById('scanSection').style.display='block';
+        navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(s=>document.getElementById('v').srcObject=s);
+    } catch(e) { alert(e.message); }
 }
 
 function takeSnap() {
-    const v = document.getElementById('v'), c = document.getElementById('c');
+    const v = document.getElementById('v'), c = document.getElementById('c'), ctx = c.getContext('2d');
     c.width = v.videoWidth; c.height = v.videoHeight;
-    c.getContext('2d').drawImage(v,0,0);
-    const data = c.toDataURL('image/jpeg');
-    const url = "https://script.google.com/macros/s/AKfycbzpEL_z0pybQye9Q0nt1u7j1P81xufRZBV9OMux6gV5-hg7dS0y5f7Ydcl-s7FF-3EC/exec";
-    
-    alert("Uploading...");
-    fetch(url,{method:'POST',mode:'no-cors',body:JSON.stringify({data:data,name:"Sahayak_"+Date.now()+".jpg"})})
-    .then(()=>alert("Saved to Drive!"));
+    ctx.filter = 'contrast(1.4) brightness(1.1)'; 
+    ctx.drawImage(v, 0, 0);
+    const data = c.toDataURL('image/jpeg', 0.9);
+    document.getElementById('status').innerText = "Saving...";
+    fetch("https://script.google.com/macros/s/AKfycbzpEL_z0pybQye9Q0nt1u7j1P81xufRZBV9OMux6gV5-hg7dS0y5f7Ydcl-s7FF-3EC/exec",{method:'POST',mode:'no-cors',body:JSON.stringify({data:data,name:"Doc_"+Date.now()+".jpg"})})
+    .then(()=> { document.getElementById('status').innerText = "Saved! ✅"; });
 }
 </script>
 </body>
