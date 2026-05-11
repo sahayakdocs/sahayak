@@ -4,111 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sahayak Smart Dashboard</title>
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
     <style>
-        :root { --primary: #1a73e8; --bg: #f0f2f5; --card: #ffffff; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; padding: 15px; color: #333; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 15px; }
+        .dash-header { background: #1a73e8; color: white; padding: 25px 15px; border-radius: 15px; text-align: center; box-shadow: 0 4px 15px rgba(26, 115, 232, 0.2); }
         
-        .dash-header { background: var(--primary); color: white; padding: 30px 15px; border-radius: 20px; text-align: center; box-shadow: 0 4px 15px rgba(26, 115, 232, 0.2); }
-        .dash-header h2 { margin: 0; font-size: 22px; }
-        .dash-header p { margin: 5px 0 0; font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
-
-        .card-box { background: var(--card); padding: 25px; border-radius: 20px; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; border-bottom: 5px solid var(--primary); }
-        .card-box h3 { margin: 0 0 10px; font-size: 18px; color: var(--primary); }
+        .action-box { background: white; padding: 20px; border-radius: 15px; margin-top: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center; }
         
-        .btn { display: block; background: var(--primary); color: white; text-decoration: none; padding: 16px; border-radius: 12px; font-weight: bold; font-size: 16px; margin-bottom: 12px; transition: 0.3s; border: none; cursor: pointer; width: 100%; box-sizing: border-box; }
-        .btn:active { transform: scale(0.98); background: #1557b0; }
+        /* Search Button Style */
+        .btn-search { display: block; background: #1a73e8; color: white; text-decoration: none; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 16px; margin-bottom: 15px; }
         
-        .info-tag { background: #e8f0fe; color: #1967d2; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: bold; display: inline-block; margin-bottom: 15px; }
-        .logout-btn { background: #f8f9fa; color: #d93025; font-size: 11px; border: 1px solid #dadce0; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        /* View List Button Style */
+        .btn-view-all { display: block; background: #34a853; color: white; text-decoration: none; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 16px; }
         
-        #loading { text-align: center; margin-top: 50px; font-weight: bold; color: var(--primary); }
-        #secureContent { display: none; }
+        .btn-search:active, .btn-view-all:active { transform: scale(0.98); opacity: 0.9; }
+        
+        .info-text { font-size: 12px; color: #666; margin-bottom: 10px; display: block; }
+        .footer { text-align: center; margin-top: 30px; font-size: 11px; color: #888; border-top: 1px solid #ddd; padding-top: 15px; }
     </style>
 </head>
 <body>
 
-<div id="loading">सुरक्षा की जांच हो रही है... 🛡️</div>
-
-<div id="secureContent">
-    <div class="dash-header">
-        <h2>My Smart Dashboard</h2>
-        <p>Sahayak Documentation Services</p>
-    </div>
-
-    <div class="card-box">
-        <h3>🔍 My Documents</h3>
-        <p style="font-size:13px; color:#666; margin-bottom:15px;">आपके सभी स्कैन किए गए दस्तावेज़ नीचे दिए गए फोल्डर में सुरक्षित हैं।</p>
-        
-        <div class="info-tag" id="userEmailTag">Email: Loading...</div>
-        
-        <a href="https://drive.google.com/drive/u/0/search?q=parent:Uploaded_Documents" target="_blank" class="btn">VIEW MY DOCUMENTS</a>
-        
-        <p style="font-size:11px; color:#888;">नोट: फाइलें देखने के लिए उसी Gmail से लॉगिन रहें जो कार्ड पर लॉक है।</p>
-    </div>
-
-    <div class="card-box" style="border-bottom: 5px solid #34a853;">
-        <h3>📍 Saved Spots</h3>
-        <button onclick="viewLocations()" class="btn" style="background:#34a853;">VIEW SAVED LOCATIONS</button>
-    </div>
-
-    <div style="text-align:center; margin-top:30px;">
-        <button onclick="logout()" class="logout-btn">LOGOUT / CHANGE ID</button>
-        <p style="font-size:10px; color:#999; margin-top:15px;">© 2026 Sahayak Docs - Smart Secure System</p>
-    </div>
+<div class="dash-header">
+    <h2>Sahayak Smart Dashboard</h2>
+    <p>Secure Document Management</p>
 </div>
 
-<script>
-const firebaseConfig = { apiKey: "AIzaSyBSB5o1YN8oAnY3X7P4RXHZcnVlyAu2YGs", authDomain: "sdm-scanner-cb292.firebaseapp.com", projectId: "sdm-scanner-cb292", appId: "1:292373162631:web:bcc197ff516eb435b4a622" };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
+<div class="action-box">
+    <span class="info-text">किसी खास डॉक्यूमेंट को खोजने के लिए:</span>
+    <a href="https://drive.google.com/drive/u/0/search?q=owner:me%20parent:Uploaded_Documents" class="btn-search">🔍 SEARCH DOCUMENTS</a>
 
-auth.onAuthStateChanged(async (user) => {
-    const savedRef = localStorage.getItem('lockedRef');
-    
-    if (!user || !savedRef) {
-        alert("कृपया पहले फ्रंट क्यूआर से कार्ड एक्टिवेट करें!");
-        window.location.href = 'index.html';
-        return;
-    }
+    <span class="info-text">सभी डॉक्यूमेंट्स की लिस्ट देखने के लिए:</span>
+    <a href="https://drive.google.com/drive/u/0/search?q=owner:me" class="btn-view-all">📂 CLICK TO VIEW ALL LIST</a>
+</div>
 
-    try {
-        const doc = await db.collection('activated_cards').doc(savedRef).get();
-        
-        if (doc.exists && doc.data().ownerEmail === user.email) {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('secureContent').style.display = 'block';
-            document.getElementById('userEmailTag').innerText = "ID: " + user.email;
-        } else {
-            alert("Security Alert: यह कार्ड इस ईमेल के लिए नहीं है!");
-            auth.signOut().then(() => window.location.href = 'index.html');
-        }
-    } catch (error) {
-        console.error("Auth Error:", error);
-        alert("सिस्टम से संपर्क नहीं हो पा रहा!");
-    }
-});
+<div class="action-box" style="background: #fff9c4; border: 1px dashed #fbc02d;">
+    <p style="font-size: 13px; color: #856404; margin: 0;"><b>Note:</b> आपके सभी डॉक्यूमेंट्स आपकी Google Drive में "Uploaded_Documents" फोल्डर में सुरक्षित हैं।</p>
+</div>
 
-function viewLocations() {
-    let locs = JSON.parse(localStorage.getItem('saved_locations') || "[]");
-    if(locs.length === 0) {
-        alert("आपने अभी तक कोई लोकेशन सेव नहीं की है।");
-    } else {
-        // ताज़ा लोकेशन मैप पर दिखाएं
-        window.open(locs[locs.length - 1].url, '_blank');
-    }
-}
-
-function logout() {
-    if(confirm("क्या आप डैशबोर्ड से बाहर निकलना चाहते हैं?")) {
-        localStorage.removeItem('lockedRef');
-        auth.signOut().then(() => location.reload());
-    }
-}
-</script>
+<div class="footer">
+    <b>SAHAYAK DOCUMENTATION - NAJAFGARH</b><br>
+    Support: 8882897071
+</div>
 
 </body>
 </html>
