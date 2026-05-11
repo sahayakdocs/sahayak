@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sahayak Smart Locker</title>
+    <title>Sahayak Smart Locker & Location Saver</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
@@ -17,7 +17,9 @@
         video { width: 100%; border-radius: 15px; background: #000; }
         .preview-count { font-size: 12px; color: #d32f2f; font-weight: bold; margin: 5px 0; }
         .btn-pdf { background: #e67e22 !important; margin-top: 10px; }
+        .btn-loc { background: #34a853 !important; margin-top: 10px; }
         .loader { color: #1a73e8; font-weight: bold; font-size: 13px; margin-top: 10px; }
+        hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
     </style>
 </head>
 <body>
@@ -36,16 +38,21 @@
         <div style="font-size:18px; font-weight:bold; color:#1a73e8; margin-bottom:10px;">Smart Scanner</div>
         
         <input type="text" id="fileName" placeholder="File Name (e.g. My Aadhaar)">
-        
         <video id="v" autoplay playsinline></video>
         <canvas id="c" style="display:none;"></canvas>
-        
         <div class="preview-count" id="pageCount">Pages Captured: 0</div>
         
         <button onclick="takeSnap()">📸 Capture Page</button>
         <button id="savePdfBtn" class="btn-pdf" onclick="uploadAsPdf()" style="display:none;">📄 Save as PDF (All Pages)</button>
         
-        <button onclick="window.location.href='viewer.html'" style="background:#34a853; margin-top:10px;">📂 My Dashboard</button>
+        <hr>
+        <div style="font-size:16px; font-weight:bold; color:#34a853;">🚗 Parking & Location Saver</div>
+        <input type="text" id="locName" placeholder="Location Name (e.g. My Car)">
+        <button onclick="saveCurrentLocation()" class="btn-loc">📍 Save Current Location</button>
+        <div id="locStatus" style="font-size:11px; margin-top:5px;"></div>
+
+        <hr>
+        <button onclick="window.location.href='viewer.html'" style="background:#5f6368; margin-top:10px;">📂 My Dashboard</button>
         <button onclick="logout()" style="background:#888; font-size:10px; padding:5px; margin-top:20px;">Logout / Change Email</button>
         <div id="uploadStatus" class="loader"></div>
     </div>
@@ -57,13 +64,12 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-let capturedPages = []; // मल्टीपल पेज स्टोर करने के लिए
+let capturedPages = [];
 
 window.onload = async () => {
     const savedRef = localStorage.getItem('lockedRef');
     const urlRef = new URLSearchParams(window.location.search).get('ref');
 
-    // अगर पहले से लॉगइन है तो डायरेक्ट कैमरा खोलें
     auth.onAuthStateChanged(async (user) => {
         if (user && savedRef) {
             showScanner();
@@ -100,7 +106,7 @@ async function checkAndLogin() {
         }
 
         await cardRef.set({ ownerEmail: user.email, activatedOn: new Date().toISOString() });
-        localStorage.setItem('lockedRef', ref); // Ref ID याद रखें
+        localStorage.setItem('lockedRef', ref);
         showScanner();
     } catch(e) { alert(e.message); }
 }
@@ -112,21 +118,43 @@ function showScanner() {
     navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(s=>document.getElementById('v').srcObject=s);
 }
 
-// फोटो खींचना (मल्टी-पेज सपोर्ट)
 function takeSnap() {
     const v = document.getElementById('v'), c = document.getElementById('c'), ctx = c.getContext('2d');
     c.width = v.videoWidth; c.height = v.videoHeight;
     ctx.filter = 'contrast(1.3) brightness(1.1)'; 
     ctx.drawImage(v, 0, 0);
-    
     const data = c.toDataURL('image/jpeg', 0.8);
     capturedPages.push(data);
-    
     document.getElementById('pageCount').innerText = "Pages Captured: " + capturedPages.length;
     document.getElementById('savePdfBtn').style.display = 'block';
 }
 
-// PDF बनाना और अपलोड करना
+// --- NEW: Location Feature ---
+function saveCurrentLocation() {
+    const locName = document.getElementById('locName').value || "Saved Spot";
+    const locStatus = document.getElementById('locStatus');
+    
+    if (navigator.geolocation) {
+        locStatus.innerText = "Location ढूंढ रहे हैं... ⏳";
+        navigator.geolocation.getCurrentPosition((position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+            
+            let locations = JSON.parse(localStorage.getItem('saved_locations') || "[]");
+            locations.push({ name: locName, url: mapsUrl, date: new Date().toLocaleString() });
+            localStorage.setItem('saved_locations', JSON.stringify(locations));
+            
+            locStatus.innerHTML = `<b style="color:green;">✅ ${locName} सेव हो गया!</b>`;
+            document.getElementById('locName').value = "";
+        }, () => {
+            locStatus.innerText = "❌ GPS परमिशन नहीं मिली।";
+        });
+    } else {
+        alert("आपका ब्राउज़र Location सपोर्ट नहीं करता।");
+    }
+}
+
 async function uploadAsPdf() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
@@ -134,7 +162,6 @@ async function uploadAsPdf() {
     const status = document.getElementById('uploadStatus');
 
     status.innerText = "PDF बना रहे हैं... ⏳";
-
     capturedPages.forEach((pageData, index) => {
         if (index > 0) doc.addPage();
         const imgProps = doc.getImageProperties(pageData);
