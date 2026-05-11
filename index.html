@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sahayak Smart Locker & Location Saver</title>
+    <title>Sahayak Smart Scanner</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
@@ -11,21 +11,20 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #eef2f7; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
         .box { background: white; width: 95%; max-width: 400px; padding: 20px; border-radius: 20px; text-align: center; border-top: 8px solid #1a73e8; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 15px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
         button { width: 100%; padding: 14px; background: #1a73e8; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 5px; }
         #scanSection, #loginSection { display: none; }
-        video { width: 100%; border-radius: 15px; background: #000; }
+        video { width: 100%; border-radius: 15px; background: #000; margin-top:10px; }
         .preview-count { font-size: 12px; color: #d32f2f; font-weight: bold; margin: 5px 0; }
-        .btn-pdf { background: #e67e22 !important; margin-top: 10px; }
-        .btn-loc { background: #34a853 !important; margin-top: 10px; }
-        .loader { color: #1a73e8; font-weight: bold; font-size: 13px; margin-top: 10px; }
+        .btn-pdf { background: #e67e22 !important; }
+        .btn-loc { background: #34a853 !important; }
         hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
     </style>
 </head>
 <body>
 
 <div class="box">
-    <div id="statusMsg" class="loader">System Loading...</div>
+    <div id="statusMsg" style="color:#1a73e8; font-weight:bold;">Loading Sahayak System...</div>
 
     <div id="loginSection">
         <h2 style="color:#1a73e8;">Activate Card</h2>
@@ -35,26 +34,24 @@
     </div>
 
     <div id="scanSection">
-        <div style="font-size:18px; font-weight:bold; color:#1a73e8; margin-bottom:10px;">Smart Scanner</div>
-        
-        <input type="text" id="fileName" placeholder="File Name (e.g. My Aadhaar)">
+        <div style="font-size:18px; font-weight:bold; color:#1a73e8;">Smart Scanner</div>
+        <input type="text" id="fileName" placeholder="File Name (e.g. My ID)">
         <video id="v" autoplay playsinline></video>
         <canvas id="c" style="display:none;"></canvas>
         <div class="preview-count" id="pageCount">Pages Captured: 0</div>
         
         <button onclick="takeSnap()">📸 Capture Page</button>
-        <button id="savePdfBtn" class="btn-pdf" onclick="uploadAsPdf()" style="display:none;">📄 Save as PDF (All Pages)</button>
+        <button id="savePdfBtn" class="btn-pdf" onclick="uploadAsPdf()" style="display:none; margin-top:10px;">📄 Save as PDF to Drive</button>
         
         <hr>
-        <div style="font-size:16px; font-weight:bold; color:#34a853;">🚗 Parking & Location Saver</div>
-        <input type="text" id="locName" placeholder="Location Name (e.g. My Car)">
-        <button onclick="saveCurrentLocation()" class="btn-loc">📍 Save Current Location</button>
+        <div style="font-weight:bold; color:#34a853; margin-bottom:5px;">🚗 Parking Saver</div>
+        <input type="text" id="locName" placeholder="Location Name">
+        <button onclick="saveCurrentLocation()" class="btn-loc">📍 Save Location</button>
         <div id="locStatus" style="font-size:11px; margin-top:5px;"></div>
 
         <hr>
-        <button onclick="window.location.href='viewer.html'" style="background:#5f6368; margin-top:10px;">📂 My Dashboard</button>
-        <button onclick="logout()" style="background:#888; font-size:10px; padding:5px; margin-top:20px;">Logout / Change Email</button>
-        <div id="uploadStatus" class="loader"></div>
+        <button onclick="window.location.href='viewer.html'" style="background:#5f6368;">📂 Open My Dashboard</button>
+        <div id="uploadStatus" style="font-size:13px; color:#1a73e8; margin-top:10px; font-weight:bold;"></div>
     </div>
 </div>
 
@@ -63,24 +60,13 @@ const firebaseConfig = { apiKey: "AIzaSyBSB5o1YN8oAnY3X7P4RXHZcnVlyAu2YGs", auth
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
-
 let capturedPages = [];
 
-window.onload = async () => {
+window.onload = () => {
     const savedRef = localStorage.getItem('lockedRef');
-    const urlRef = new URLSearchParams(window.location.search).get('ref');
-
-    auth.onAuthStateChanged(async (user) => {
-        if (user && savedRef) {
-            showScanner();
-        } else {
-            document.getElementById('statusMsg').style.display = 'none';
-            document.getElementById('loginSection').style.display = 'block';
-            if(urlRef) { 
-                document.getElementById('refId').value = urlRef;
-                document.getElementById('refId').readOnly = true;
-            }
-        }
+    auth.onAuthStateChanged(user => {
+        if (user && savedRef) { showScanner(); } 
+        else { document.getElementById('statusMsg').style.display = 'none'; document.getElementById('loginSection').style.display = 'block'; }
     });
 };
 
@@ -95,17 +81,10 @@ async function checkAndLogin() {
 
     try {
         const res = await auth.signInWithPopup(provider);
-        const user = res.user;
         const cardRef = db.collection('activated_cards').doc(ref);
         const doc = await cardRef.get();
-
-        if(doc.exists && doc.data().ownerEmail !== user.email) {
-            alert("यह कार्ड किसी और ईमेल से लिंक है!");
-            await auth.signOut();
-            return;
-        }
-
-        await cardRef.set({ ownerEmail: user.email, activatedOn: new Date().toISOString() });
+        if(doc.exists && doc.data().ownerEmail !== res.user.email) { alert("Locked to another email!"); await auth.signOut(); return; }
+        await cardRef.set({ ownerEmail: res.user.email, activatedOn: new Date().toISOString() });
         localStorage.setItem('lockedRef', ref);
         showScanner();
     } catch(e) { alert(e.message); }
@@ -121,74 +100,42 @@ function showScanner() {
 function takeSnap() {
     const v = document.getElementById('v'), c = document.getElementById('c'), ctx = c.getContext('2d');
     c.width = v.videoWidth; c.height = v.videoHeight;
-    ctx.filter = 'contrast(1.3) brightness(1.1)'; 
+    ctx.filter = 'contrast(1.2) brightness(1.1)';
     ctx.drawImage(v, 0, 0);
-    const data = c.toDataURL('image/jpeg', 0.8);
-    capturedPages.push(data);
+    capturedPages.push(c.toDataURL('image/jpeg', 0.8));
     document.getElementById('pageCount').innerText = "Pages Captured: " + capturedPages.length;
     document.getElementById('savePdfBtn').style.display = 'block';
 }
 
-// --- NEW: Location Feature ---
 function saveCurrentLocation() {
-    const locName = document.getElementById('locName').value || "Saved Spot";
-    const locStatus = document.getElementById('locStatus');
-    
     if (navigator.geolocation) {
-        locStatus.innerText = "Location ढूंढ रहे हैं... ⏳";
-        navigator.geolocation.getCurrentPosition((position) => {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
-            
-            let locations = JSON.parse(localStorage.getItem('saved_locations') || "[]");
-            locations.push({ name: locName, url: mapsUrl, date: new Date().toLocaleString() });
-            localStorage.setItem('saved_locations', JSON.stringify(locations));
-            
-            locStatus.innerHTML = `<b style="color:green;">✅ ${locName} सेव हो गया!</b>`;
-            document.getElementById('locName').value = "";
-        }, () => {
-            locStatus.innerText = "❌ GPS परमिशन नहीं मिली।";
+        navigator.geolocation.getCurrentPosition(p => {
+            const url = `http://maps.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
+            let locs = JSON.parse(localStorage.getItem('saved_locs') || "[]");
+            locs.push({ name: document.getElementById('locName').value || "Spot", url: url, date: new Date().toLocaleString() });
+            localStorage.setItem('saved_locs', JSON.stringify(locs));
+            document.getElementById('locStatus').innerHTML = "✅ Location Saved!";
         });
-    } else {
-        alert("आपका ब्राउज़र Location सपोर्ट नहीं करता।");
     }
 }
 
 async function uploadAsPdf() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    const fileName = document.getElementById('fileName').value || "SmartDoc_" + Date.now();
     const status = document.getElementById('uploadStatus');
+    status.innerText = "Saving to Drive... 🚀";
 
-    status.innerText = "PDF बना रहे हैं... ⏳";
-    capturedPages.forEach((pageData, index) => {
-        if (index > 0) doc.addPage();
-        const imgProps = doc.getImageProperties(pageData);
-        const pdfWidth = doc.internal.pageSize.getWidth();
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        doc.addImage(pageData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-    });
-
+    capturedPages.forEach((p, i) => { if(i>0) doc.addPage(); doc.addImage(p, 'JPEG', 0, 0, 210, 297); });
     const pdfBase64 = doc.output('datauristring').split(',')[1];
-    status.innerText = "Drive में सेव हो रहा है... 🚀";
 
     fetch("https://script.google.com/macros/s/AKfycbzIz-80FoLcZdhAqkZCmMR9164npnp3xcc7OKrKp4jvv5xUI3cl5FfuPZQKuSbQTwIG/exec", {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify({ data: pdfBase64, name: fileName + ".pdf", type: "application/pdf" })
+        method: 'POST', mode: 'no-cors',
+        body: JSON.stringify({ data: pdfBase64, name: (document.getElementById('fileName').value || "Doc") + ".pdf" })
     }).then(() => {
-        status.innerText = "PDF सुरक्षित सेव हो गया! ✅";
+        status.innerText = "Saved Successfully! ✅";
         capturedPages = [];
         document.getElementById('pageCount').innerText = "Pages Captured: 0";
-        document.getElementById('savePdfBtn').style.display = 'none';
-        alert("PDF Saved Successfully!");
     });
-}
-
-function logout() {
-    localStorage.removeItem('lockedRef');
-    auth.signOut().then(() => location.reload());
 }
 </script>
 </body>
