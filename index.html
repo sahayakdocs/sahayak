@@ -3,129 +3,182 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sahayak Smart Scanner</title>
+    <title>Sahayak Smart Scanner (Private)</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #eef2f7; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        .box { background: white; width: 95%; max-width: 400px; padding: 20px; border-radius: 20px; text-align: center; border-top: 8px solid #1a73e8; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
-        button { width: 100%; padding: 14px; background: #1a73e8; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a192f; color: white; text-align: center; margin: 0; padding: 15px; }
+        .box { background: #112240; padding: 25px; border-radius: 20px; border-top: 5px solid #00f2ff; max-width: 400px; margin: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        input { width: 90%; padding: 12px; margin: 10px 0; border-radius: 10px; border: 1px solid #00f2ff; background: #0a192f; color: white; }
+        button { width: 100%; padding: 15px; background: #00f2ff; color: black; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        video { width: 100%; border-radius: 15px; margin-top: 15px; border: 2px solid #00f2ff; }
         #scanSection, #loginSection { display: none; }
-        video { width: 100%; border-radius: 15px; background: #000; margin-top:10px; }
-        .preview-count { font-size: 12px; color: #d32f2f; font-weight: bold; margin: 5px 0; }
-        hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+        .status-msg { margin-top: 15px; font-weight: bold; font-size: 13px; color: #00f2ff; }
     </style>
 </head>
 <body>
+    <div class="box">
+        <div id="status">Secure System Loading... 🛡️</div>
+        
+        <div id="loginSection">
+            <h2>Activate Card</h2>
+            <p style="font-size: 11px; opacity: 0.8;">डेटा आपकी निजी Google Drive में सुरक्षित रहेगा।</p>
+            <input type="text" id="refId" placeholder="Ref ID (जैसे 65188014)">
+            <input type="password" id="sdPass" placeholder="SD Password">
+            <button onclick="checkAndLogin()">लॉगिन और एक्टिवेट करें</button>
+        </div>
 
-<div class="box">
-    <div id="statusMsg" style="color:#1a73e8; font-weight:bold;">Sahayak System Loading... ⏳</div>
-
-    <div id="loginSection">
-        <h2 style="color:#1a73e8;">Activate Card</h2>
-        <input type="text" id="refId" placeholder="Ref. ID (जैसे 65188014)">
-        <input type="password" id="sdPass" placeholder="Enter SD Password">
-        <button onclick="checkAndLogin()">Activate & Start</button>
+        <div id="scanSection">
+            <h3 style="color:#00f2ff;">Smart Scanner Active</h3>
+            <input type="text" id="fileName" placeholder="File Name (Aadhaar, RC etc.)">
+            <video id="v" autoplay playsinline></video>
+            <canvas id="c" style="display:none;"></canvas>
+            <button onclick="takeSnap()">📸 Capture Page</button>
+            <button id="saveBtn" style="display:none; background:#e67e22;" onclick="uploadToUserDrive()">📄 Save to MY DRIVE</button>
+            <div id="upStatus" class="status-msg"></div>
+            <hr style="border:0; border-top:1px solid #1d2d50; margin:20px 0;">
+            <button onclick="window.location.href='viewer.html'" style="background:#5f6368;">📂 Dashboard खोलें</button>
+        </div>
     </div>
-
-    <div id="scanSection">
-        <div style="font-size:18px; font-weight:bold; color:#1a73e8;">Smart Scanner</div>
-        <input type="text" id="fileName" placeholder="File Name (जैसे: Aadhaar)">
-        <video id="v" autoplay playsinline></video>
-        <canvas id="c" style="display:none;"></canvas>
-        <div class="preview-count" id="pageCount">Pages: 0</div>
-        <button onclick="takeSnap()">📸 Capture Page</button>
-        <button id="savePdfBtn" style="display:none; background:#e67e22; margin-top:10px;" onclick="uploadAsPdf()">📄 Save PDF to Drive</button>
-        <hr>
-        <button onclick="window.location.href='viewer.html'" style="background:#5f6368;">📂 Open My Dashboard</button>
-        <div id="uploadStatus" style="font-size:13px; color:#1a73e8; margin-top:10px; font-weight:bold;"></div>
-    </div>
-</div>
 
 <script>
-const firebaseConfig = { apiKey: "AIzaSyBSB5o1YN8oAnY3X7P4RXHZcnVlyAu2YGs", authDomain: "sdm-scanner-cb292.firebaseapp.com", projectId: "sdm-scanner-cb292", appId: "1:292373162631:web:bcc197ff516eb435b4a622" };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
-let capturedPages = [];
+    const firebaseConfig = { apiKey: "AIzaSyBSB5o1YN8oAnY3X7P4RXHZcnVlyAu2YGs", authDomain: "sdm-scanner-cb292.firebaseapp.com", projectId: "sdm-scanner-cb292", appId: "1:292373162631:web:bcc197ff516eb435b4a622" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore(), auth = firebase.auth();
+    let capturedPages = [];
+    let userAccessToken = ""; // यहाँ यूजर का प्राइवेट एक्सेस टोकन रहेगा
 
-window.onload = () => {
-    const savedRef = localStorage.getItem('lockedRef');
-    auth.onAuthStateChanged(async (user) => {
-        if (user && savedRef) {
-            const doc = await db.collection('activated_cards').doc(savedRef).get();
-            if (doc.exists && doc.data().ownerEmail === user.email) {
+    window.onload = () => {
+        const savedRef = localStorage.getItem('lockedRef');
+        auth.onAuthStateChanged(async (user) => {
+            if (user && savedRef) {
+                // टोकन को रिफ्रेश करने के लिए दोबारा लॉगिन की ज़रूरत हो सकती है अगर ड्राइव में फाइल न जाए
                 showScanner();
-            } else { resetToLogin(); }
-        } else { resetToLogin(); }
-    });
-};
+            } else {
+                document.getElementById('status').style.display = 'none';
+                document.getElementById('loginSection').style.display = 'block';
+            }
+        });
+    };
 
-function resetToLogin() {
-    document.getElementById('statusMsg').style.display = 'none';
-    document.getElementById('loginSection').style.display = 'block';
-}
+    async function checkAndLogin() {
+        const ref = document.getElementById('refId').value;
+        const pass = document.getElementById('sdPass').value;
+        let total = (parseInt(ref[4])*5) + (parseInt(ref[6])*7) + (parseInt(ref[7])*8);
+        if(pass !== "SD" + total.toString().padStart(4, '0')) return alert("गलत SD कोड!");
 
-async function checkAndLogin() {
-    const ref = document.getElementById('refId').value;
-    const pass = document.getElementById('sdPass').value;
-    let total = (parseInt(ref[4])*5) + (parseInt(ref[6])*7) + (parseInt(ref[7])*8);
-    if(pass !== "SD" + total.toString().padStart(4, '0')) { alert("Wrong Password!"); return; }
+        const provider = new firebase.auth.GoogleAuthProvider();
+        // DRIVE API की परमिशन मांगना
+        provider.addScope('https://www.googleapis.com/auth/drive.file');
 
-    const provider = new firebase.auth.GoogleAuthProvider();
-    try {
-        const res = await auth.signInWithPopup(provider);
-        const user = res.user;
-        const cardRef = db.collection('activated_cards').doc(ref);
-        const doc = await cardRef.get();
+        try {
+            const res = await auth.signInWithPopup(provider);
+            userAccessToken = res.credential.accessToken; // टोकन मिल गया!
+            
+            const cardRef = db.collection('activated_cards').doc(ref);
+            const doc = await cardRef.get();
+            
+            if(doc.exists && doc.data().ownerEmail !== res.user.email) {
+                alert("यह कार्ड किसी और ईमेल से लॉक है!");
+                return auth.signOut();
+            }
 
-        if(doc.exists && doc.data().ownerEmail !== user.email) {
-            alert("यह कार्ड किसी और ईमेल से लिंक है!");
-            await auth.signOut(); return;
+            await cardRef.set({ ownerEmail: res.user.email, activatedOn: new Date().toISOString() }, {merge: true});
+            localStorage.setItem('lockedRef', ref);
+            showScanner();
+        } catch(e) { alert("लॉगिन एरर: " + e.message); }
+    }
+
+    function showScanner() {
+        document.getElementById('status').style.display = 'none';
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('scanSection').style.display = 'block';
+        navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(s=>document.getElementById('v').srcObject=s);
+    }
+
+    function takeSnap() {
+        const v = document.getElementById('v'), c = document.getElementById('c'), ctx = c.getContext('2d');
+        c.width = v.videoWidth; c.height = v.videoHeight;
+        ctx.drawImage(v, 0, 0);
+        capturedPages.push(c.toDataURL('image/jpeg', 0.8));
+        document.getElementById('saveBtn').style.display = 'block';
+        document.getElementById('upStatus').innerText = "पेज कैप्चर हो गया! (कुल: " + capturedPages.length + ")";
+    }
+
+    // --- सबसे महत्वपूर्ण हिस्सा: कस्टमर की ड्राइव में फाइल डालना ---
+    async function uploadToUserDrive() {
+        if(!userAccessToken) {
+            alert("ड्राइव एक्सेस खत्म हो गया है, कृपया दोबारा लॉगिन करें।");
+            return logout();
         }
 
-        await cardRef.set({ ownerEmail: user.email, activatedOn: new Date().toISOString() }, {merge: true});
-        localStorage.setItem('lockedRef', ref);
-        showScanner();
-    } catch(e) { alert("Error: " + e.message); }
-}
+        const status = document.getElementById('upStatus');
+        status.innerText = "आपकी निजी Drive में सेव हो रहा है... 🚀";
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        capturedPages.forEach((p, i) => { if(i>0) doc.addPage(); doc.addImage(p, 'JPEG', 0, 0, 210, 297); });
+        const pdfBlob = doc.output('blob');
 
-function showScanner() {
-    document.getElementById('statusMsg').style.display = 'none';
-    document.getElementById('loginSection').style.display = 'none';
-    document.getElementById('scanSection').style.display = 'block';
-    navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(s=>document.getElementById('v').srcObject=s);
-}
+        try {
+            // 1. 'Uploaded_Documents' फोल्डर ढूंढें या बनाएं
+            const folderId = await getOrCreateFolder();
+            
+            // 2. फाइल अपलोड करें
+            const metadata = {
+                name: (document.getElementById('fileName').value || "Doc_" + Date.now()) + ".pdf",
+                mimeType: 'application/pdf',
+                parents: [folderId]
+            };
 
-function takeSnap() {
-    const v = document.getElementById('v'), c = document.getElementById('c'), ctx = c.getContext('2d');
-    c.width = v.videoWidth; c.height = v.videoHeight;
-    ctx.drawImage(v, 0, 0);
-    capturedPages.push(c.toDataURL('image/jpeg', 0.8));
-    document.getElementById('pageCount').innerText = "Pages: " + capturedPages.length;
-    document.getElementById('savePdfBtn').style.display = 'block';
-}
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+            form.append('file', pdfBlob);
 
-async function uploadAsPdf() {
-    const status = document.getElementById('uploadStatus');
-    status.innerText = "Saving to Drive... 🚀";
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    capturedPages.forEach((p, i) => { if(i>0) doc.addPage(); doc.addImage(p, 'JPEG', 0, 0, 210, 297); });
-    const pdfBase64 = doc.output('datauristring').split(',')[1];
+            const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                method: 'POST',
+                headers: new Headers({ 'Authorization': 'Bearer ' + userAccessToken }),
+                body: form
+            });
 
-    fetch("https://script.google.com/macros/s/AKfycbzIz-80FoLcZdhAqkZCmMR9164npnp3xcc7OKrKp4jvv5xUI3cl5FfuPZQKuSbQTwIG/exec", {
-        method: 'POST', mode: 'no-cors',
-        body: JSON.stringify({ data: pdfBase64, name: (document.getElementById('fileName').value || "Doc") + ".pdf" })
-    }).then(() => {
-        status.innerText = "Saved Successfully! ✅";
-        capturedPages = [];
-        document.getElementById('pageCount').innerText = "Pages: 0";
-    });
-}
+            if(res.ok) {
+                status.innerText = "आपकी Drive में 'Uploaded_Documents' फोल्डर में सुरक्षित सेव हो गया! ✅";
+                capturedPages = [];
+                document.getElementById('saveBtn').style.display = 'none';
+            } else {
+                throw new Error("अपलोड फेल हो गया।");
+            }
+        } catch (e) {
+            status.innerText = "एरर: " + e.message;
+            console.error(e);
+        }
+    }
+
+    async function getOrCreateFolder() {
+        const query = encodeURIComponent("name='Uploaded_Documents' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}`, {
+            headers: { 'Authorization': 'Bearer ' + userAccessToken }
+        }).then(r => r.json());
+
+        if (res.files && res.files.length > 0) {
+            return res.files[0].id; // पुराना फोल्डर मिल गया
+        } else {
+            // नया फोल्डर बनाएं
+            const create = await fetch('https://www.googleapis.com/drive/v3/files', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + userAccessToken, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: 'Uploaded_Documents', mimeType: 'application/vnd.google-apps.folder' })
+            }).then(r => r.json());
+            return create.id;
+        }
+    }
+
+    function logout() {
+        localStorage.clear();
+        auth.signOut().then(() => location.reload());
+    }
 </script>
 </body>
 </html>
