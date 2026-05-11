@@ -74,8 +74,15 @@ window.onload = () => {
 async function checkAndLogin() {
     const ref = document.getElementById('refId').value;
     const pass = document.getElementById('sdPass').value;
+    
+    // SD Code Calculation
     let total = (parseInt(ref[4])*5) + (parseInt(ref[6])*7) + (parseInt(ref[7])*8);
-    if(pass !== "SD" + total.toString().padStart(4, '0')) { alert("Wrong Password!"); return; }
+    let expectedPass = "SD" + total.toString().padStart(4, '0');
+
+    if(pass !== expectedPass) { 
+        alert("गलत SD कोड! कृपया सही कोड डालें।"); 
+        return; 
+    }
 
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/drive.file');
@@ -83,18 +90,34 @@ async function checkAndLogin() {
     try {
         const res = await auth.signInWithPopup(provider);
         const user = res.user;
+
+        // Firebase से कार्ड चेक करना
         const cardRef = db.collection('activated_cards').doc(ref);
         const doc = await cardRef.get();
 
-        if(doc.exists && doc.data().ownerEmail !== user.email) {
-            alert("यह कार्ड किसी और ईमेल से लिंक है!");
-            await auth.signOut(); return;
+        if(doc.exists) {
+            const data = doc.data();
+            if(data.ownerEmail && data.ownerEmail !== user.email) {
+                alert("यह कार्ड पहले से किसी और ईमेल (" + data.ownerEmail + ") पर लॉक है!");
+                await auth.signOut();
+                return;
+            }
         }
 
-        await cardRef.set({ ownerEmail: user.email, activatedOn: new Date().toISOString() });
+        // ईमेल लॉक करना और डेटा सेव करना
+        await cardRef.set({ 
+            ownerEmail: user.email, 
+            activatedOn: new Date().toISOString(),
+            status: "Active"
+        }, { merge: true });
+
         localStorage.setItem('lockedRef', ref);
-        showScanner();
-    } catch(e) { alert(e.message); }
+        showScanner(); // कैमरा खोलें
+        
+    } catch(e) { 
+        console.error("Error details:", e);
+        alert("कनेक्शन एरर: " + e.message); 
+    }
 }
 
 function showScanner() {
