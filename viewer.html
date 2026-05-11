@@ -3,47 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sahayak Dashboard</title>
+    <title>Sahayak Smart Dashboard</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 15px; }
-        .dash-header { background: #1a73e8; color: white; padding: 20px; border-radius: 15px; text-align: center; }
-        .card-box { background: white; padding: 20px; border-radius: 15px; margin-top: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center; }
-        .btn { display: block; background: #1a73e8; color: white; text-decoration: none; padding: 15px; border-radius: 12px; font-weight: bold; margin-bottom: 10px; }
-        .loc-list { text-align: left; font-size: 13px; margin-top: 10px; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 15px; }
+        
+        /* Dashboard Header */
+        .dash-header { background: #1a73e8; color: white; padding: 25px 15px; border-radius: 15px; text-align: center; box-shadow: 0 4px 15px rgba(26, 115, 232, 0.2); }
+        .dash-header h2 { margin: 0; font-size: 20px; }
+        .dash-header p { margin: 5px 0 0; font-size: 11px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Search Section */
+        .card-box { background: white; padding: 20px; border-radius: 15px; margin-top: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center; border-left: 5px solid #1a73e8; }
+        .card-box h3 { margin: 0 0 10px; font-size: 17px; color: #333; }
+        .search-btn { display: block; background: #1a73e8; color: white; text-decoration: none; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 16px; transition: 0.3s; }
+        .search-btn:active { transform: scale(0.98); background: #1557b0; }
+
+        /* Service Grid */
+        .service-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+        .service-item { background: white; padding: 15px; border-radius: 12px; text-align: center; font-size: 12px; font-weight: bold; color: #555; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; overflow: hidden; }
+        .coming-soon { font-size: 8px; color: #d32f2f; display: block; margin-top: 5px; background: #ffebee; padding: 2px; border-radius: 4px; }
+
+        /* Announcements */
+        .announce-box { background: #fff9c4; padding: 15px; border-radius: 12px; margin-top: 20px; border: 1px dashed #fbc02d; position: relative; }
+        .announce-box b { color: #856404; font-size: 14px; display: block; margin-bottom: 5px; }
+        .announce-box p { margin: 0; font-size: 12px; color: #555; line-height: 1.4; }
+
+        /* Footer */
+        .footer { text-align: center; margin-top: 30px; font-size: 11px; color: #888; border-top: 1px solid #ddd; padding-top: 15px; }
     </style>
 </head>
 <body>
 
 <div class="dash-header">
     <h2>My Smart Dashboard</h2>
-    <p>SAHAYAK DOCUMENTATION</p>
+    <p>Sahayak Documentation Services</p>
 </div>
 
 <div class="card-box">
-    <h3>🔍 Documents</h3>
-    <a href="https://drive.google.com/drive/u/0/search?q=Uploaded_Documents" target="_blank" class="btn">VIEW ALL DOCUMENTS</a>
-    <p style="font-size:12px; color:#666;">Note: Use your registered Gmail to view files.</p>
+    <h3>🔍 Quick Search</h3>
+    <p style="font-size:12px; color:#666; margin-bottom:15px;">अपने सभी अपलोड किए गए दस्तावेज़ों को नाम से खोजें।</p>
+    <a href="https://drive.google.com/drive/u/0/search?q=owner:me%20Uploaded_Documents" class="search-btn">SEARCH DOCUMENTS</a>
 </div>
 
-<div id="locationBox" class="card-box">
-    <h3>📍 Saved Locations</h3>
-    <div id="locDisplay" class="loc-list">Loading locations...</div>
-    <button onclick="localStorage.removeItem('saved_locs'); location.reload();" style="font-size:10px; color:red; border:none; background:none;">Clear All</button>
+<div class="service-grid">
+    <div class="service-item">
+        📁 PDF Maker
+        <span class="coming-soon">COMING SOON</span>
+    </div>
+    <div class="service-item">
+        🔔 Expiry Alert
+        <span class="coming-soon">COMING SOON</span>
+    </div>
+    <div class="service-item">
+        🛡️ Cyber Safety
+        <span class="coming-soon">NEW</span>
+    </div>
+    <div class="service-item">
+        💳 PVC Printing
+        <span class="coming-soon">AVAILABLE</span>
+    </div>
 </div>
 
-<script>
-    window.onload = () => {
-        let locs = JSON.parse(localStorage.getItem('saved_locs') || "[]");
-        let display = document.getElementById('locDisplay');
-        if(locs.length === 0) { display.innerHTML = "No locations saved yet."; }
-        else {
-            display.innerHTML = locs.map(l => `<div><b>${l.name}</b>: <a href="${l.url}" target="_blank">Open Map</a> (${l.date})</div>`).join('<hr>');
-        }
-    };
-</script>
+<div class="announce-box">
+    <b>📢 Latest Update:</b>
+    <p>अब आपका कार्ड और भी सुरक्षित है! आपका डेटा केवल आपकी Gmail ID से ही खुलेगा। नई सुविधाओं के लिए हमारे साथ बने रहें।</p>
+</div>
 
-<div class="footer" style="text-align:center; margin-top:20px; font-size:11px; color:#888;">
-    © 2026 Sahayak Docs - Najafgarh
+<div class="footer">
+    <b>SAHAYAK DOCUMENTATION - NAJAFGARH</b><br>
+    Digital Security Partner | Support: 8882897071<br>
+    <span style="font-size:9px; margin-top:5px; display:block;">© 2026 Sahayak Docs - Smart System</span>
 </div>
 
 </body>
