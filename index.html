@@ -16,47 +16,36 @@
         #scanSection, #loginSection { display: none; }
         video { width: 100%; border-radius: 15px; background: #000; margin-top:10px; }
         .preview-count { font-size: 12px; color: #d32f2f; font-weight: bold; margin: 5px 0; }
-        .btn-pdf { background: #e67e22 !important; }
-        .btn-loc { background: #34a853 !important; }
         hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
     </style>
 </head>
 <body>
 
 <div class="box">
-    <div id="statusMsg" style="color:#1a73e8; font-weight:bold;">Loading Sahayak System...</div>
+    <div id="statusMsg" style="color:#1a73e8; font-weight:bold;">Sahayak System Loading... ⏳</div>
 
     <div id="loginSection">
         <h2 style="color:#1a73e8;">Activate Card</h2>
-        <input type="text" id="refId" placeholder="Ref. ID from Card">
+        <input type="text" id="refId" placeholder="Ref. ID (जैसे 65188014)">
         <input type="password" id="sdPass" placeholder="Enter SD Password">
-        <button onclick="checkAndLogin()">Activate & Lock Email</button>
+        <button onclick="checkAndLogin()">Activate & Start</button>
     </div>
 
     <div id="scanSection">
         <div style="font-size:18px; font-weight:bold; color:#1a73e8;">Smart Scanner</div>
-        <input type="text" id="fileName" placeholder="File Name (Aadhaar, RC etc.)">
+        <input type="text" id="fileName" placeholder="File Name (जैसे: Aadhaar)">
         <video id="v" autoplay playsinline></video>
         <canvas id="c" style="display:none;"></canvas>
-        <div class="preview-count" id="pageCount">Pages Captured: 0</div>
-        
+        <div class="preview-count" id="pageCount">Pages: 0</div>
         <button onclick="takeSnap()">📸 Capture Page</button>
-        <button id="savePdfBtn" class="btn-pdf" onclick="uploadAsPdf()" style="display:none; margin-top:10px;">📄 Save as PDF to Drive</button>
-        
+        <button id="savePdfBtn" style="display:none; background:#e67e22; margin-top:10px;" onclick="uploadAsPdf()">📄 Save PDF to Drive</button>
         <hr>
-        <div style="font-weight:bold; color:#34a853; margin-bottom:5px;">🚗 Parking & Location Saver</div>
-        <input type="text" id="locName" placeholder="Location Name">
-        <button onclick="saveCurrentLocation()" class="btn-loc">📍 Save Current Location</button>
-        <div id="locStatus" style="font-size:11px; margin-top:5px;"></div>
-
-        <hr>
-        <button onclick="window.location.href='viewer.html'" style="background:#5f6368;">📂 My Dashboard</button>
+        <button onclick="window.location.href='viewer.html'" style="background:#5f6368;">📂 Open My Dashboard</button>
         <div id="uploadStatus" style="font-size:13px; color:#1a73e8; margin-top:10px; font-weight:bold;"></div>
     </div>
 </div>
 
 <script>
-// Firebase Config (Already Updated by Manish)
 const firebaseConfig = { apiKey: "AIzaSyBSB5o1YN8oAnY3X7P4RXHZcnVlyAu2YGs", authDomain: "sdm-scanner-cb292.firebaseapp.com", projectId: "sdm-scanner-cb292", appId: "1:292373162631:web:bcc197ff516eb435b4a622" };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
@@ -65,59 +54,43 @@ let capturedPages = [];
 
 window.onload = () => {
     const savedRef = localStorage.getItem('lockedRef');
-    auth.onAuthStateChanged(user => {
-        if (user && savedRef) { showScanner(); } 
-        else { document.getElementById('statusMsg').style.display = 'none'; document.getElementById('loginSection').style.display = 'block'; }
+    auth.onAuthStateChanged(async (user) => {
+        if (user && savedRef) {
+            const doc = await db.collection('activated_cards').doc(savedRef).get();
+            if (doc.exists && doc.data().ownerEmail === user.email) {
+                showScanner();
+            } else { resetToLogin(); }
+        } else { resetToLogin(); }
     });
 };
+
+function resetToLogin() {
+    document.getElementById('statusMsg').style.display = 'none';
+    document.getElementById('loginSection').style.display = 'block';
+}
 
 async function checkAndLogin() {
     const ref = document.getElementById('refId').value;
     const pass = document.getElementById('sdPass').value;
-    
-    // SD Code Calculation
     let total = (parseInt(ref[4])*5) + (parseInt(ref[6])*7) + (parseInt(ref[7])*8);
-    let expectedPass = "SD" + total.toString().padStart(4, '0');
-
-    if(pass !== expectedPass) { 
-        alert("गलत SD कोड! कृपया सही कोड डालें।"); 
-        return; 
-    }
+    if(pass !== "SD" + total.toString().padStart(4, '0')) { alert("Wrong Password!"); return; }
 
     const provider = new firebase.auth.GoogleAuthProvider();
-    provider.addScope('https://www.googleapis.com/auth/drive.file');
-
     try {
         const res = await auth.signInWithPopup(provider);
         const user = res.user;
-
-        // Firebase से कार्ड चेक करना
         const cardRef = db.collection('activated_cards').doc(ref);
         const doc = await cardRef.get();
 
-        if(doc.exists) {
-            const data = doc.data();
-            if(data.ownerEmail && data.ownerEmail !== user.email) {
-                alert("यह कार्ड पहले से किसी और ईमेल (" + data.ownerEmail + ") पर लॉक है!");
-                await auth.signOut();
-                return;
-            }
+        if(doc.exists && doc.data().ownerEmail !== user.email) {
+            alert("यह कार्ड किसी और ईमेल से लिंक है!");
+            await auth.signOut(); return;
         }
 
-        // ईमेल लॉक करना और डेटा सेव करना
-        await cardRef.set({ 
-            ownerEmail: user.email, 
-            activatedOn: new Date().toISOString(),
-            status: "Active"
-        }, { merge: true });
-
+        await cardRef.set({ ownerEmail: user.email, activatedOn: new Date().toISOString() }, {merge: true});
         localStorage.setItem('lockedRef', ref);
-        showScanner(); // कैमरा खोलें
-        
-    } catch(e) { 
-        console.error("Error details:", e);
-        alert("कनेक्शन एरर: " + e.message); 
-    }
+        showScanner();
+    } catch(e) { alert("Error: " + e.message); }
 }
 
 function showScanner() {
@@ -130,32 +103,17 @@ function showScanner() {
 function takeSnap() {
     const v = document.getElementById('v'), c = document.getElementById('c'), ctx = c.getContext('2d');
     c.width = v.videoWidth; c.height = v.videoHeight;
-    ctx.filter = 'contrast(1.2) brightness(1.1)';
     ctx.drawImage(v, 0, 0);
     capturedPages.push(c.toDataURL('image/jpeg', 0.8));
-    document.getElementById('pageCount').innerText = "Pages Captured: " + capturedPages.length;
+    document.getElementById('pageCount').innerText = "Pages: " + capturedPages.length;
     document.getElementById('savePdfBtn').style.display = 'block';
 }
 
-function saveCurrentLocation() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(p => {
-            const lat = p.coords.latitude, lng = p.coords.longitude;
-            const url = `https://www.google.com/maps?q=${lat},${lng}`;
-            let locs = JSON.parse(localStorage.getItem('saved_locs') || "[]");
-            locs.push({ name: document.getElementById('locName').value || "Spot", url: url, date: new Date().toLocaleString() });
-            localStorage.setItem('saved_locs', JSON.stringify(locs));
-            document.getElementById('locStatus').innerHTML = "✅ Location Saved!";
-        });
-    }
-}
-
 async function uploadAsPdf() {
+    const status = document.getElementById('uploadStatus');
+    status.innerText = "Saving to Drive... 🚀";
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    const status = document.getElementById('uploadStatus');
-    status.innerText = "PDF बना रहे हैं और Drive में सेव कर रहे हैं... 🚀";
-
     capturedPages.forEach((p, i) => { if(i>0) doc.addPage(); doc.addImage(p, 'JPEG', 0, 0, 210, 297); });
     const pdfBase64 = doc.output('datauristring').split(',')[1];
 
@@ -163,10 +121,9 @@ async function uploadAsPdf() {
         method: 'POST', mode: 'no-cors',
         body: JSON.stringify({ data: pdfBase64, name: (document.getElementById('fileName').value || "Doc") + ".pdf" })
     }).then(() => {
-        status.innerText = "Drive में सुरक्षित सेव हो गया! ✅";
+        status.innerText = "Saved Successfully! ✅";
         capturedPages = [];
-        document.getElementById('pageCount').innerText = "Pages Captured: 0";
-        alert("PDF Saved Successfully!");
+        document.getElementById('pageCount').innerText = "Pages: 0";
     });
 }
 </script>
